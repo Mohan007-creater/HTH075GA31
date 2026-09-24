@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Home,
   Compass,
   Sparkles,
   BarChart2,
@@ -36,6 +37,7 @@ interface SidebarProps {
   onTriggerUpload: () => void;
   onOpenSettings: () => void;
   onOpenHelp: () => void;
+  onGoHome: () => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
 }
@@ -48,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTriggerUpload,
   onOpenSettings,
   onOpenHelp,
+  onGoHome,
   mobileOpen,
   onCloseMobile,
 }) => {
@@ -81,8 +84,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex flex-col flex-1 overflow-y-auto">
           {/* Brand Logo Header */}
           <div className="p-5 border-b border-white/[0.08] flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#4F8CFF] to-[#8B5CF6] flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+            <button
+              onClick={() => {
+                onGoHome();
+                onCloseMobile();
+              }}
+              className="flex items-center gap-3 text-left group transition-opacity hover:opacity-90"
+              title="Return to Home / Initial Landing"
+            >
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#4F8CFF] to-[#8B5CF6] flex items-center justify-center text-white shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform">
                 <Database className="w-4 h-4" />
               </div>
               <div>
@@ -95,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   Schema-Agnostic BI
                 </p>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Active Dataset Status Mini-Card */}
@@ -135,14 +145,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
 
-          {/* Navigation Items (Numbered 1-7 per specification) */}
+          {/* Navigation Items (Home at top, followed by 1-7 per specification) */}
           <div className="px-3 py-4 space-y-1">
             <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-[#687386]">
               Navigation
             </div>
+
+            {/* Home Link (At very top of navigation: resets to initial landing state) */}
+            <button
+              onClick={() => {
+                onGoHome();
+                onCloseMobile();
+              }}
+              title="Return to initial landing state"
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group ${
+                !dataset && activeTab === 'overview'
+                  ? 'bg-[#151B28] text-[#F5F7FB] border-l-[3px] border-[#4F8CFF] shadow-[inset_0_0_12px_rgba(79,140,255,0.12)]'
+                  : 'text-[#9CA7BA] hover:text-[#F5F7FB] hover:bg-[#151B28]/60 border-l-[3px] border-transparent'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Home
+                  className={`w-4 h-4 transition-colors ${
+                    !dataset && activeTab === 'overview'
+                      ? 'text-[#4F8CFF]'
+                      : 'text-[#687386] group-hover:text-[#9CA7BA]'
+                  }`}
+                />
+                <span>Home</span>
+              </div>
+              {dataset ? (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md text-[#9CA7BA] bg-white/[0.04] group-hover:text-white transition-colors">
+                  Landing
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md font-bold text-[#4F8CFF] bg-[#4F8CFF]/15">
+                  Start
+                </span>
+              )}
+            </button>
+
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id;
+              const isActive = activeTab === item.id && (item.id !== 'overview' || !!dataset);
               return (
                 <button
                   key={item.id}

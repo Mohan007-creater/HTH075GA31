@@ -254,6 +254,19 @@ export default function App() {
     );
   };
 
+  /**
+   * Reset / re-route to initial landing state
+   */
+  const handleGoHome = () => {
+    setDataset(null);
+    setAnalysisResults([]);
+    setConversationHistory([]);
+    setCurrentAmbiguity(null);
+    setCurrentUnanswerable(null);
+    setUploadError(null);
+    setActiveTab('overview');
+  };
+
   const getBreadcrumbLabel = (tab: NavTab) => {
     switch (tab) {
       case 'overview':
@@ -299,6 +312,7 @@ export default function App() {
         onTriggerUpload={() => fileInputRef.current?.click()}
         onOpenSettings={() => setShowSettingsModal(true)}
         onOpenHelp={() => setShowHelpModal(true)}
+        onGoHome={handleGoHome}
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />
@@ -318,7 +332,13 @@ export default function App() {
 
             {/* Breadcrumb Navigation */}
             <nav className="flex items-center gap-2 text-xs font-medium">
-              <span className="text-[#687386]">Home</span>
+              <button
+                onClick={handleGoHome}
+                title="Return to initial landing state"
+                className="text-[#687386] hover:text-[#4F8CFF] transition-colors cursor-pointer"
+              >
+                Home
+              </button>
               <ChevronRight className="w-3.5 h-3.5 text-[#687386]" />
               <span className="text-[#F5F7FB] font-semibold">
                 {getBreadcrumbLabel(activeTab)}

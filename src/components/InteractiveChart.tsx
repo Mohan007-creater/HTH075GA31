@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChartDataPoint } from '../types/dataset';
 import { BarChart3, LineChart, PieChart, Table as TableIcon, Sparkles } from 'lucide-react';
 import { formatNumber } from '../utils/dataEngine';
@@ -21,6 +21,14 @@ const PALETTE = [
   '#6366F1', // indigo-500
 ];
 
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16) || 79;
+  const g = parseInt(clean.substring(2, 4), 16) || 140;
+  const b = parseInt(clean.substring(4, 6), 16) || 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 export const InteractiveChart: React.FC<InteractiveChartProps> = ({
   data,
   initialType = 'bar',
@@ -30,6 +38,10 @@ export const InteractiveChart: React.FC<InteractiveChartProps> = ({
 }) => {
   const [currentType, setCurrentType] = useState<string>(initialType);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    setCurrentType(initialType);
+  }, [initialType]);
 
   if (!data || data.length === 0) {
     return (
@@ -142,23 +154,32 @@ export const InteractiveChart: React.FC<InteractiveChartProps> = ({
 
       {/* 1. Vertical Bar Chart */}
       {currentType === 'bar' && (
-        <div className="relative pt-6 pb-2">
-          <div className="h-56 flex items-end gap-3 sm:gap-5 px-2">
+        <div className="relative pt-8 pb-2">
+          <div
+            className={`h-56 flex items-end gap-2 sm:gap-3 px-2 overflow-x-auto pb-2 scrollbar-thin ${
+              data.length <= 6 ? 'justify-around' : 'justify-start sm:justify-between'
+            }`}
+          >
             {data.map((item, idx) => {
-              const heightPct = Math.max(8, (item.value / maxValue) * 100);
+              const safeVal = isNaN(item.value) ? 0 : Math.max(0, item.value);
+              const heightPct = Math.min(
+                100,
+                Math.max(item.value > 0 ? 6 : 2, (safeVal / (maxValue || 1)) * 100)
+              );
               const color = PALETTE[idx % PALETTE.length];
               const isHovered = hoveredIndex === idx;
 
               return (
                 <div
                   key={idx}
-                  className="flex-1 flex flex-col items-center h-full justify-end group relative cursor-pointer"
+                  className="flex-1 min-w-[42px] max-w-[64px] flex flex-col items-center h-full justify-end group relative cursor-pointer"
                   onMouseEnter={() => setHoveredIndex(idx)}
                   onMouseLeave={() => setHoveredIndex(null)}
+                  onTouchStart={() => setHoveredIndex(idx)}
                 >
                   {/* Tooltip */}
                   {isHovered && (
-                    <div className="absolute -top-10 z-20 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-cyan-500/50 shadow-2xl text-[11px] whitespace-nowrap text-white font-mono pointer-events-none">
+                    <div className="absolute -top-11 z-30 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-cyan-500/50 shadow-2xl text-[11px] whitespace-nowrap text-white font-mono pointer-events-none">
                       <span className="font-semibold text-cyan-300">{item.label}</span>:{' '}
                       {formatNumber(item.value, unit)}{' '}
                       <span className="text-slate-400">
@@ -167,26 +188,26 @@ export const InteractiveChart: React.FC<InteractiveChartProps> = ({
                     </div>
                   )}
 
-                  {/* Bar */}
-                  <div className="w-full max-w-[48px] rounded-t-lg bg-slate-800/40 relative overflow-hidden transition-all duration-300 group-hover:brightness-125">
+                  {/* Bar Track & Fill */}
+                  <div className="w-full h-36 sm:h-40 rounded-t-lg bg-slate-800/40 relative flex items-end overflow-hidden transition-all duration-300 group-hover:brightness-125 border border-white/[0.04]">
                     <div
                       className="w-full rounded-t-lg transition-all duration-500"
                       style={{
                         height: `${heightPct}%`,
-                        background: `linear-gradient(to top, ${color}33, ${color})`,
-                        boxShadow: isHovered ? `0 0 15px ${color}88` : 'none',
+                        background: `linear-gradient(to top, ${hexToRgba(color, 0.35)}, ${color})`,
+                        boxShadow: isHovered ? `0 0 16px ${hexToRgba(color, 0.6)}` : 'none',
                       }}
                     />
                   </div>
 
                   {/* Value Label */}
-                  <span className="mt-2 text-[10px] font-mono text-slate-400 group-hover:text-cyan-300">
+                  <span className="mt-2 text-[10px] font-mono text-slate-400 group-hover:text-cyan-300 truncate max-w-full text-center">
                     {formatNumber(item.value, unit)}
                   </span>
 
                   {/* Category Label */}
                   <span
-                    className="mt-1 text-[11px] text-slate-400 max-w-[65px] truncate text-center group-hover:text-slate-200"
+                    className="mt-1 text-[11px] text-slate-400 max-w-full truncate text-center group-hover:text-slate-200"
                     title={item.label}
                   >
                     {item.label}

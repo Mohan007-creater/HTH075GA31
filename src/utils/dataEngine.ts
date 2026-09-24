@@ -631,8 +631,15 @@ export function executeAnalysisPlan(
     }
 
     // Sort
+    const isTemporal = Boolean(plan.dateGranularity || dataset.profiles[groupBy]?.dataType === 'date' || plan.recommendedChart === 'line');
+    const isRankingIntent = plan.intent === 'ranking' || plan.intent === 'top_n' || plan.intent === 'bottom_n';
     const sortOrder = plan.sort || (plan.intent === 'bottom_n' ? 'asc' : 'desc');
-    computedItems.sort((a, b) => (sortOrder === 'asc' ? a.value - b.value : b.value - a.value));
+
+    if (isTemporal && !isRankingIntent) {
+      computedItems.sort((a, b) => a.label.localeCompare(b.label));
+    } else {
+      computedItems.sort((a, b) => (sortOrder === 'asc' ? a.value - b.value : b.value - a.value));
+    }
 
     // Limit
     const limit = plan.limit || (plan.intent === 'ranking' || plan.intent === 'top_n' ? 5 : undefined);
