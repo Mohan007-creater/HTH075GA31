@@ -1,0 +1,6 @@
+{
+  "name": "DataMind AI — Schema-Agnostic Natural Language Data Analyst",
+  "description": "AI-powered Business Intelligence platform with dynamic schema inference, real data calculations, interactive charts, data quality audit, and anomaly detection.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
