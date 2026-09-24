@@ -17,15 +17,26 @@ export async function parseUploadedFile(
 ): Promise<Dataset> {
   onProgress?.(0); // 1. Reading file
 
+  const extension = file.name.toLowerCase().split('.').pop();
+  if (!extension || !['csv', 'xlsx', 'xls'].includes(extension)) {
+    throw new Error('Unsupported file type. Please upload a CSV, XLSX, or XLS file.');
+  }
+
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
   const firstSheetName = workbook.SheetNames[0];
+  if (!firstSheetName) {
+    throw new Error('The uploaded workbook does not contain a worksheet.');
+  }
   const worksheet = workbook.Sheets[firstSheetName];
+  if (!worksheet) {
+    throw new Error('The first worksheet could not be read.');
+  }
 
   // Convert to JSON
   const rawData: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, {
     defval: null,
-    raw: false,
+    raw: true,
     dateNF: 'yyyy-mm-dd',
   });
 
@@ -36,11 +47,22 @@ export async function parseUploadedFile(
   // Clean and sanitize column headers
   const sampleRaw = rawData[0];
   const originalKeys = Object.keys(sampleRaw);
+  const usedKeys = new Set<string>();
+  const normalizedKeys = originalKeys.map((key, idx) => {
+    const base = String(key).trim() || `Column_${idx + 1}`;
+    let cleanKey = base;
+    let suffix = 2;
+    while (usedKeys.has(cleanKey)) {
+      cleanKey = `${base}_${suffix++}`;
+    }
+    usedKeys.add(cleanKey);
+    return { original: key, clean: cleanKey };
+  });
+
   const sanitizedRecords: Record<string, any>[] = rawData.map((row) => {
     const cleanRow: Record<string, any> = {};
-    originalKeys.forEach((key, idx) => {
-      const cleanKey = key.trim() || `Column_${idx + 1}`;
-      cleanRow[cleanKey] = row[key];
+    normalizedKeys.forEach(({ original, clean }) => {
+      cleanRow[clean] = row[original];
     });
     return cleanRow;
   });

@@ -211,14 +211,35 @@ function generateClientHeuristicPlan(question: string, dataset: Dataset): Analys
     intent = 'correlation';
     secondaryMeasure = secondaryMeasure || measures[1]?.columnName;
     chart = 'scatter';
-  } else if (q.includes('top') || q.includes('highest') || q.includes('best') || q.includes('most')) {
+    if (!targetMeasure || !secondaryMeasure) {
+      return {
+        intent: 'correlation',
+        isUnanswerable: true,
+        unanswerableReason: 'Correlation requires at least two numeric measures in the dataset.',
+        suggestedAlternatives: dataset.suggestedQuestions.slice(0, 3),
+        explanationSteps: [],
+        technicalFormula: '',
+        recommendedChart: 'table',
+      };
+    }
+  } else if (
+    q.includes('top') ||
+    q.includes('best') ||
+    q.includes('most') ||
+    (q.includes('highest') && (groupBy || q.includes(' by ')))
+  ) {
     intent = 'ranking';
     sort = 'desc';
-    groupBy = groupBy || dimensions[0]?.columnName;
+    groupBy = groupBy || dimensions[0]?.columnName || geographics[0]?.columnName;
     const matchLimit = q.match(/top\s+(\d+)/);
     limit = matchLimit ? parseInt(matchLimit[1], 10) : 5;
     chart = 'horizontal_bar';
-  } else if (q.includes('bottom') || q.includes('lowest') || q.includes('worst') || q.includes('least')) {
+  } else if (
+    q.includes('bottom') ||
+    q.includes('worst') ||
+    q.includes('least') ||
+    (q.includes('lowest') && (groupBy || q.includes(' by ')))
+  ) {
     intent = 'bottom_n';
     sort = 'asc';
     groupBy = groupBy || dimensions[0]?.columnName;
@@ -226,6 +247,12 @@ function generateClientHeuristicPlan(question: string, dataset: Dataset): Analys
     chart = 'horizontal_bar';
   } else if (q.includes('average') || q.includes('avg') || q.includes('mean')) {
     intent = 'average';
+  } else if (q.includes('minimum') || q.includes('minimum value') || q.includes('lowest value') || q.includes('min ')) {
+    intent = 'minimum';
+    chart = 'metric';
+  } else if (q.includes('maximum') || q.includes('maximum value') || q.includes('highest value') || q.includes('max ')) {
+    intent = 'maximum';
+    chart = 'metric';
   } else if (q.includes('count') || q.includes('how many')) {
     intent = 'count';
   } else if (q.includes('percent') || q.includes('share') || q.includes('proportion')) {

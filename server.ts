@@ -11,9 +11,14 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, geminiAvailable, model: GEMINI_MODEL });
+});
 
 // Check if Gemini API access is available
 let geminiAvailable = !!process.env.GEMINI_API_KEY;
@@ -37,7 +42,7 @@ async function callGeminiWithTimeout(prompt: string, timeoutMs = 8000) {
   }
 
   const apiCall = ai.models.generateContent({
-    model: 'gemini-3.8-flash',
+    model: GEMINI_MODEL,
     contents: prompt,
     config: {
       responseMimeType: 'application/json',
@@ -558,19 +563,33 @@ function serverGeneratePlan(
     intent = 'correlation';
     secondaryMeasure = secondaryMeasure || measures[1]?.columnName;
     chart = 'scatter';
-  } else if (q.includes('top') || q.includes('highest') || q.includes('best') || q.includes('most')) {
+  } else if (
+    q.includes('top') ||
+    q.includes('best') ||
+    q.includes('most') ||
+    (q.includes('highest') && (groupBy || q.includes(' by ')))
+  ) {
     intent = 'ranking';
     sort = 'desc';
     groupBy = groupBy || dimensions[0]?.columnName || geographics[0]?.columnName;
     const matchLimit = q.match(/top\s+(\d+)/);
     limit = matchLimit ? parseInt(matchLimit[1], 10) : 5;
     chart = 'horizontal_bar';
-  } else if (q.includes('bottom') || q.includes('lowest') || q.includes('worst') || q.includes('least')) {
+  } else if (
+    q.includes('bottom') ||
+    q.includes('worst') ||
+    q.includes('least') ||
+    (q.includes('lowest') && (groupBy || q.includes(' by ')))
+  ) {
     intent = 'bottom_n';
     sort = 'asc';
     groupBy = groupBy || dimensions[0]?.columnName || geographics[0]?.columnName;
     limit = 5;
     chart = 'horizontal_bar';
+  } else if (q.includes('minimum') || q.includes('minimum value') || q.includes('lowest value') || /\bmin\b/.test(q)) {
+    intent = 'minimum';
+  } else if (q.includes('maximum') || q.includes('maximum value') || q.includes('highest value') || /\bmax\b/.test(q)) {
+    intent = 'maximum';
   } else if (q.includes('average') || q.includes('avg') || q.includes('mean')) {
     intent = 'average';
   } else if (q.includes('count') || q.includes('how many')) {
@@ -601,7 +620,11 @@ function serverGeneratePlan(
     secondaryMeasure,
     groupBy,
     dateGranularity,
-    aggregation: intent === 'average' ? 'avg' : 'sum',
+    aggregation:
+      intent === 'average' ? 'avg' :
+      intent === 'minimum' ? 'min' :
+      intent === 'maximum' ? 'max' :
+      intent === 'count' ? 'count' : 'sum',
     sort,
     limit,
     recommendedChart: chart,

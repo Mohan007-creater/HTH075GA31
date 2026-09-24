@@ -176,7 +176,12 @@ export function detectAnomalies(
   const anomalies: AnomalyItem[] = [];
 
   for (const [colName, profile] of Object.entries(profiles)) {
-    if (profile.dataType !== 'number' || !profile.mean || !profile.stdDev) {
+    if (
+      profile.dataType !== 'number' ||
+      profile.mean === undefined ||
+      profile.stdDev === undefined ||
+      profile.stdDev === 0
+    ) {
       continue;
     }
 
@@ -207,11 +212,14 @@ export function detectAnomalies(
           rowNumber: item.idx + 1,
           columnName: colName,
           value: item.val,
-          expectedMin: Math.max(0, Number(lowerBound.toFixed(2))),
+          expectedMin: Number(lowerBound.toFixed(2)),
           expectedMax: Number(upperBound.toFixed(2)),
           zScore: Number(zScore.toFixed(2)),
           deviationMultiplier: profile.median && profile.median > 0 ? Number((item.val / profile.median).toFixed(1)) : undefined,
-          reason: `Value ${formatNumber(item.val)} is significantly higher than the typical range (${formatNumber(lowerBound)} - ${formatNumber(upperBound)}).`,
+          reason:
+            item.val < lowerBound
+              ? `Value ${formatNumber(item.val)} is below the typical range (${formatNumber(lowerBound)} - ${formatNumber(upperBound)}).`
+              : `Value ${formatNumber(item.val)} is above the typical range (${formatNumber(lowerBound)} - ${formatNumber(upperBound)}).`,
           recordSnapshot: item.record
         });
       }
@@ -483,7 +491,14 @@ export function executeAnalysisPlan(
   plan: AnalysisPlan
 ): AnalysisResult {
   const records = dataset.records;
-  const targetMeasure = plan.targetMeasure || Object.keys(dataset.profiles).find((c) => dataset.profiles[c].dataType === 'number') || dataset.columns[0];
+  const targetMeasure =
+    plan.targetMeasure ||
+    Object.keys(dataset.profiles).find((c) => dataset.profiles[c].dataType === 'number') ||
+    dataset.columns[0];
+
+  if (!targetMeasure) {
+    throw new Error('The dataset does not contain any analyzable columns.');
+  }
   const groupBy = plan.groupBy;
   const aggregation = plan.aggregation || 'sum';
 
@@ -506,7 +521,7 @@ export function executeAnalysisPlan(
           if (filter.operator === '>=') return numVal >= filterNum;
           if (filter.operator === '<=') return numVal <= filterNum;
         }
-        return true;
+        return false;
       });
       calculationSteps.push(`Filtered records where ${filter.column} ${filter.operator} "${filter.value}" (${filtered.length} matching rows).`);
     }
@@ -589,6 +604,7 @@ export function executeAnalysisPlan(
   else if (groupBy) {
     calculationSteps.push(`Identified grouping dimension: "${groupBy}" and target measure: "${targetMeasure}".`);
     const groups: Record<string, number[]> = {};
+    const groupRowCounts: Record<string, number> = {};
 
     for (const r of filtered) {
       let key = String(r[groupBy] ?? 'Unknown');
@@ -606,6 +622,7 @@ export function executeAnalysisPlan(
       }
 
       if (!groups[key]) groups[key] = [];
+      groupRowCounts[key] = (groupRowCounts[key] || 0) + 1;
       const num = parseNumericValue(r[targetMeasure]);
       if (num !== null) groups[key].push(num);
     }
@@ -620,7 +637,7 @@ export function executeAnalysisPlan(
         else if (aggregation === 'avg') result = vals.reduce((a, b) => a + b, 0) / vals.length;
         else if (aggregation === 'min') result = Math.min(...vals);
         else if (aggregation === 'max') result = Math.max(...vals);
-        else if (aggregation === 'count') result = vals.length;
+        else if (aggregation === 'count') result = groupRowCounts[grpKey] || 0;
         else if (aggregation === 'median') {
           vals.sort((a, b) => a - b);
           const mid = Math.floor(vals.length / 2);
